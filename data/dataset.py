@@ -32,13 +32,7 @@ def generate_dataset(
     snr_linear = 10 ** (snr_db / 10)
 
     # Calculate noise power
-    signal_power = np.mean(
-        np.abs(transmitted) ** 2,
-        axis=1,
-        keepdims=True
-    )
-
-    noise_power = signal_power / snr_linear
+    noise_power = 1.0 / snr_linear
 
     # Generate complex AWGN
     noise = np.sqrt(noise_power / 2) * (
