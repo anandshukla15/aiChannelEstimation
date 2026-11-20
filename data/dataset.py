@@ -7,22 +7,22 @@ def generate_dataset(
     snr_db_range=(0, 20),
     seed=42
 ):
+
     rng = np.random.default_rng(seed)
 
-    # Generate BPSK pilot symbols
-    bits = rng.integers(0, 2, size=(num_samples, num_pilots))
-    pilots = 2 * bits - 1
+    # Fixed known BPSK pilot sequence
+    pilots = np.ones((num_samples, num_pilots))
 
-    # Generate one complex Rayleigh channel per sample
+    # Generate Rayleigh fading channel
     real = rng.standard_normal((num_samples, 1))
     imag = rng.standard_normal((num_samples, 1))
 
     h = (real + 1j * imag) / np.sqrt(2)
 
-    # Transmit pilots through wireless channel
+    # Transmit pilots
     transmitted = h * pilots
 
-    # Randomly select SNR for every sample
+    # Generate random SNR
     snr_db = rng.uniform(
         snr_db_range[0],
         snr_db_range[1],
@@ -32,11 +32,15 @@ def generate_dataset(
     snr_linear = 10 ** (snr_db / 10)
 
     # Calculate noise power
-    signal_power = np.mean(np.abs(transmitted) ** 2, axis=1, keepdims=True)
+    signal_power = np.mean(
+        np.abs(transmitted) ** 2,
+        axis=1,
+        keepdims=True
+    )
 
     noise_power = signal_power / snr_linear
 
-    # Generate complex Gaussian noise
+    # Generate complex AWGN
     noise = np.sqrt(noise_power / 2) * (
         rng.standard_normal((num_samples, num_pilots))
         + 1j * rng.standard_normal((num_samples, num_pilots))
@@ -45,19 +49,19 @@ def generate_dataset(
     # Received signal
     received = transmitted + noise
 
-    # Prepare neural network input
+    # Neural network input
     X = np.concatenate(
         [received.real, received.imag],
         axis=1
     )
 
-    # Actual channel: ground truth
+    # Actual channel
     y = np.concatenate(
         [h.real, h.imag],
         axis=1
     )
 
-    # Calculate LS estimates for comparison
+    # LS estimation
     numerator = np.sum(
         np.conj(pilots) * received,
         axis=1
@@ -80,21 +84,10 @@ def generate_dataset(
 
 if __name__ == "__main__":
 
-    print("Generating dataset...")
+    print("Generating corrected dataset...")
 
     X, y, ls, snr_db = generate_dataset()
 
-    print("Dataset generated successfully!")
-
-    print("Input shape:", X.shape)
-    print("Target shape:", y.shape)
-    print("LS shape:", ls.shape)
-
-    print("First input sample:", X[0])
-    print("Actual channel:", y[0])
-    print("LS estimate:", ls[0])
-
-    # Save dataset
     np.savez_compressed(
         "data/channel_dataset.npz",
         X=X,
@@ -103,4 +96,8 @@ if __name__ == "__main__":
         snr_db=snr_db
     )
 
-    print("Dataset saved successfully!")
+    print("Corrected dataset saved!")
+
+    print("Input:", X.shape)
+    print("Target:", y.shape)
+    print("LS:", ls.shape)
